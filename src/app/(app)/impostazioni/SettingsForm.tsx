@@ -1,8 +1,8 @@
 'use client';
 import { useActionState } from 'react';
-import { saveSettings, testEmail } from './actions';
+import { saveSettings, testEmail, testGhl } from './actions';
 
-type S = Record<string, string | number | boolean | null> & { hasSmtpPass: boolean };
+type S = Record<string, string | number | boolean | null> & { hasSmtpPass: boolean; hasGhlToken: boolean };
 
 function Section({ title, desc, children }: { title: string; desc?: string; children: React.ReactNode }) {
   return (
@@ -29,6 +29,7 @@ function F({ label, name, defaultValue, type = 'text', help, placeholder }: { la
 export function SettingsForm({ s, appUrl }: { s: S; appUrl: string }) {
   const [state, action, pending] = useActionState(saveSettings, undefined);
   const [testState, testAction, testPending] = useActionState(testEmail, undefined);
+  const [ghlState, ghlAction, ghlPending] = useActionState(testGhl, undefined);
   return (
     <div className="max-w-5xl space-y-5">
       <h1 className="text-2xl font-semibold">Impostazioni</h1>
@@ -73,6 +74,26 @@ export function SettingsForm({ s, appUrl }: { s: S; appUrl: string }) {
             <label className="mt-7 flex items-center gap-2 text-sm"><input type="checkbox" name="smtpSecure" defaultChecked={!!s.smtpSecure} /> SSL/TLS diretto (porta 465)</label>
             <F label="Utente SMTP" name="smtpUser" defaultValue={s.smtpUser as string} />
             <F label="Password SMTP" name="smtpPass" type="password" help={s.hasSmtpPass ? 'Già impostata: lascia vuoto per non cambiarla. Viene salvata cifrata.' : 'Viene salvata cifrata.'} />
+          </div>
+        </Section>
+
+        <Section title="Invio tramite GoHighLevel" desc="Modalità mista: invito e promemoria partono da GHL (dal vostro dominio di invio GHL e compaiono nella conversazione del contatto). Il codice OTP, la copia firmata in PDF, la conferma di recesso e le notifiche al team partono sempre via SMTP, così codici e documenti non restano in GHL. Se GHL non risponde, l’email parte via SMTP.">
+          <div>
+            <label className="label" htmlFor="emailMode">Modalità di invio</label>
+            <select className="input" id="emailMode" name="emailMode" defaultValue={s.emailMode as string}>
+              <option value="smtp">Tutto via SMTP</option>
+              <option value="misto">Misto: invito e promemoria via GoHighLevel, il resto via SMTP</option>
+            </select>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="label" htmlFor="ghlToken">Token Private Integration</label>
+              <input className="input" id="ghlToken" name="ghlToken" type="password" autoComplete="off" />
+              <p className="mt-1 text-xs text-zinc-500">{s.hasGhlToken ? 'Già impostato: lascia vuoto per non cambiarlo. ' : ''}GHL → Settings → Private Integrations → crea con permessi “contacts.write” e “conversations/message.write”. Salvato cifrato.</p>
+              {s.hasGhlToken && <label className="mt-1 flex items-center gap-1 text-xs"><input type="checkbox" name="ghlToken_remove" value="1" /> Rimuovi token</label>}
+            </div>
+            <F label="Location ID (sub-account)" name="ghlLocationId" defaultValue={s.ghlLocationId as string} help="GHL → Settings → Business Profile, oppure nell’URL: /location/<ID>/…" />
+            <F label="Mittente in GHL (facoltativo)" name="ghlEmailFrom" type="email" defaultValue={s.ghlEmailFrom as string} help="Deve essere un indirizzo del dominio di invio configurato in GHL. Vuoto = mittente predefinito di GHL." />
           </div>
         </Section>
 
@@ -124,6 +145,17 @@ export function SettingsForm({ s, appUrl }: { s: S; appUrl: string }) {
         <button className="btn-secondary" disabled={testPending}>Invia prova</button>
         {testState?.ok && <p className="w-full text-sm text-emerald-700">{testState.ok}</p>}
         {testState?.error && <p className="w-full text-sm text-rose-700">{testState.error}</p>}
+      </form>
+
+      <form action={ghlAction} className="card flex flex-wrap items-end gap-3 p-5">
+        <div className="flex-1">
+          <label className="label" htmlFor="ghl-to">Prova invio tramite GoHighLevel</label>
+          <input className="input" id="ghl-to" name="to" type="email" placeholder="tua@email.it" />
+          <p className="mt-1 text-xs text-zinc-500">Crea (o aggiorna) il contatto in GHL e gli invia un’email di prova.</p>
+        </div>
+        <button className="btn-secondary" disabled={ghlPending}>Invia prova GHL</button>
+        {ghlState?.ok && <p className="w-full text-sm text-emerald-700">{ghlState.ok}</p>}
+        {ghlState?.error && <p className="w-full text-sm text-rose-700">{ghlState.error}</p>}
       </form>
     </div>
   );

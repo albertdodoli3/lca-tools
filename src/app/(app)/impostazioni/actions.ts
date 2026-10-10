@@ -3,7 +3,7 @@ import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 import { encrypt } from '@/lib/crypto';
-import { sendMail } from '@/lib/mail';
+import { ghlConfigured, sendMail, sendViaGhl } from '@/lib/mail';
 
 const str = (f: FormData, k: string, max = 500) => String(f.get(k) ?? '').trim().slice(0, max);
 const int = (f: FormData, k: string, min: number, max: number, def: number) => {
@@ -26,6 +26,7 @@ export async function saveSettings(_: unknown, f: FormData) {
     const logo = await imageField(f, 'logo');
     const signature = await imageField(f, 'signature');
     const pass = String(f.get('smtpPass') ?? '');
+    const ghlToken = String(f.get('ghlToken') ?? '').trim();
     const color = str(f, 'brandColor');
     await db.settings.update({
       where: { id: 1 },
@@ -41,6 +42,11 @@ export async function saveSettings(_: unknown, f: FormData) {
         smtpSecure: f.get('smtpSecure') === 'on',
         smtpUser: str(f, 'smtpUser', 200),
         ...(pass ? { smtpPassEnc: encrypt(pass) } : {}),
+        emailMode: f.get('emailMode') === 'misto' ? 'misto' : 'smtp',
+        ghlLocationId: str(f, 'ghlLocationId', 100),
+        ghlEmailFrom: str(f, 'ghlEmailFrom', 200).toLowerCase(),
+        ...(ghlToken ? { ghlTokenEnc: encrypt(ghlToken) } : {}),
+        ...(f.get('ghlToken_remove') === '1' ? { ghlTokenEnc: '' } : {}),
         notifyEmails: str(f, 'notifyEmails', 1000),
         linkExpiryDays: int(f, 'linkExpiryDays', 1, 60, 7),
         reminderDays: str(f, 'reminderDays', 50).replace(/[^0-9,]/g, ''),
@@ -68,4 +74,16 @@ export async function testEmail(_: unknown, f: FormData) {
   const r = await sendMail({ to, subject: 'Prova di invio — gestione contratti', text: 'Se leggi questa email la configurazione SMTP funziona correttamente.', kind: 'test' });
   if (!r.ok) return { error: `Invio non riuscito: ${r.error}` };
   return { ok: r.simulated ? 'SMTP non configurato: email solo simulata.' : `Email di prova inviata a ${to}` };
+}
+
+export async function testGhl(_: unknown, f: FormData) {
+  const user = await requireAdmin();
+  if (!(await ghlConfigured())) return { error: 'Inserisci e salva prima token e Location ID di GoHighLevel.' };
+  const to = String(f.get('to') || user.email).trim().toLowerCase();
+  try {
+    await sendViaGhl({ to, name: user.name, subject: 'Prova di invio tramite GoHighLevel — gestione contratti', html: '<p>Se leggi questa email il collegamento con GoHighLevel funziona correttamente.</p>', text: 'Se leggi questa email il collegamento con GoHighLevel funziona correttamente.' });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Errore' };
+  }
+  return { ok: `Email di prova inviata tramite GoHighLevel a ${to} (trovi il contatto e la conversazione in GHL).` };
 }

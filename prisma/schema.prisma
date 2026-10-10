@@ -54,6 +54,11 @@ model Settings {
   smtpUser             String  @default("")
   smtpPassEnc          String  @default("")
   notifyEmails         String  @default("")
+  /// "smtp" = tutto via SMTP; "misto" = invito e promemoria via GoHighLevel, OTP/copie/notifiche via SMTP
+  emailMode            String  @default("smtp")
+  ghlTokenEnc          String  @default("")
+  ghlLocationId        String  @default("")
+  ghlEmailFrom         String  @default("")
   linkExpiryDays       Int     @default(7)
   reminderDays         String  @default("2,5")
   otpMinutes           Int     @default(10)
@@ -178,6 +183,8 @@ model EmailLog {
   contractId String?
   contract   Contract? @relation(fields: [contractId], references: [id], onDelete: Cascade)
   kind       String
+  /// smtp | ghl | test
+  channel    String    @default("smtp")
   to         String
   subject    String
   body       String

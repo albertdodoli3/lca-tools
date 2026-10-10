@@ -5,6 +5,6 @@ import { SettingsForm } from './SettingsForm';
 export default async function SettingsPage() {
   await requireAdmin();
   const s = await getSettings();
-  const { smtpPassEnc, ...rest } = s;
-  return <SettingsForm s={{ ...rest, hasSmtpPass: !!smtpPassEnc, updatedAt: s.updatedAt.toISOString() }} appUrl={appUrl()} />;
+  const { smtpPassEnc, ghlTokenEnc, ...rest } = s;
+  return <SettingsForm s={{ ...rest, hasSmtpPass: !!smtpPassEnc, hasGhlToken: !!ghlTokenEnc, updatedAt: s.updatedAt.toISOString() }} appUrl={appUrl()} />;
 }

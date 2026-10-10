@@ -36,6 +36,7 @@ export async function runJobs() {
     const vars = { nome: c.recipientName.split(' ')[0], link, scadenza: formatDate(c.tokenExpiresAt), titolo: c.title, azienda: s.companyName, codice: c.code };
     await sendMail({
       to: c.recipientEmail,
+      name: c.recipientName,
       subject: `Promemoria: ${fillEmailText(c.emailSubject || s.defaultEmailSubject, vars)}`,
       text: `Ciao ${vars.nome},\n\nti ricordiamo che il contratto "${c.title}" è in attesa della tua firma. Il link è valido fino al ${vars.scadenza}.\n\n${s.companyName}`,
       kind: 'promemoria',

@@ -12,6 +12,7 @@ Software interno di Love Coach Academy per creare, inviare e far firmare i contr
 | **Pannello laterale di invio**: destinatario, oggetto e testo dell’email modificabili, validità del link, pulsante *“Invia con richiesta OTP per lo sblocco”*. C’è anche *“Copia link”* per mandarlo su WhatsApp: l’OTP arriva comunque solo all’email del cliente. | *Invia al cliente →* |
 | **Pagina del cliente**: richiesta del codice OTP via email → verifica → compilazione guidata (dati, dichiarazioni, rilettura, firme) → firma disegnata o digitata → PDF. | Link ricevuto via email |
 | **Pipeline** `Bozza → Inviato → Aperto → OTP sbloccato → Firmato`, più *Scaduto*, *Annullato* e *Receduto*. | *Pipeline* |
+| **Invio misto**: invito e promemoria da GoHighLevel, OTP e copie firmate via SMTP (vedi sotto). | *Impostazioni* |
 | **Avvisi in app ed email** al venditore e agli admin (apertura, sblocco, firma, scadenza, recesso) e **promemoria automatici** al cliente (default dopo 2 e 5 giorni). | *Avvisi* |
 | **Webhook** per GoHighLevel e altre automazioni, uno per ogni cambio di stato. | *Impostazioni* |
 | **Recesso online** con il pulsante *“Recedi dal contratto qui”* entro 14 giorni (art. 54-bis Codice del Consumo, richiamato dall’art. 12.2 del vostro contratto) ed email di conferma di ricezione. | Pagina del cliente |
@@ -63,9 +64,23 @@ Variabili d’ambiente in produzione:
 
 I promemoria e le scadenze girano in automatico ogni 15 minuti all’interno dell’app. In alternativa: `GET /api/cron` con header `Authorization: Bearer <CRON_SECRET>`.
 
-## Email e dominio
+## Email e dominio: invio misto (GoHighLevel + SMTP)
 
-Il dominio si imposta anche dopo, da *Impostazioni → Invio email (SMTP)*. Systeme.io e GoHighLevel non forniscono credenziali SMTP utilizzabili da altre app, quindi serve un servizio di email transazionali. Consiglio **Brevo** (europeo, piano gratuito sufficiente): verifica il dominio aggiungendo i record **SPF e DKIM** che ti indica, poi copia server, porta, utente e chiave SMTP nelle Impostazioni. Usa *“Prova invio email”* per verificare. Va bene anche una casella Google Workspace (smtp.gmail.com, porta 465, password per app).
+In *Impostazioni → Invio tramite GoHighLevel* scegli **“Misto”**:
+
+| Email | Canale | Perché |
+|---|---|---|
+| Invito con il link, promemoria | **GoHighLevel** (API Conversations) | partono dal vostro dominio GHL e compaiono nella conversazione del contatto |
+| Codice OTP, copia firmata in PDF, conferma di recesso, notifiche al team | **SMTP** | codici e documenti personali non restano salvati in GHL; il PDF viaggia come allegato vero (supporto durevole) |
+
+Se GoHighLevel non risponde (token scaduto, errore), l’email parte in automatico via SMTP. Nella scheda *Email* del contratto ogni messaggio mostra il canale usato.
+
+**Configurazione GoHighLevel**
+1. GHL → *Settings → Private Integrations* → crea un’integrazione con i permessi `contacts.write` e `conversations/message.write`, poi copia il token.
+2. Copia il **Location ID** del sub-account (*Settings → Business Profile*, oppure dall’URL `/location/<ID>/…`).
+3. Incollali nelle Impostazioni, salva e usa *“Invia prova GHL”*. Il contatto viene creato o aggiornato in GHL con origine “LCA Contratti”: eventuali workflow GHL attivati dalla creazione di un contatto partiranno anche qui.
+
+**SMTP (obbligatorio per OTP e copie firmate)**: va bene la casella che usate già, per esempio Google Workspace (`smtp.gmail.com`, porta 465, SSL, con una “password per le app”) oppure il provider della vostra casella aziendale. Senza SMTP l’app resta in modalità test per le email via SMTP.
 
 ## GoHighLevel (webhook)
 

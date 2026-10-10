@@ -81,7 +81,7 @@ export async function sendContract(
     },
     include: { owner: true },
   });
-  const res = await sendMail({ to: input.to, subject, text, kind: 'invito', contractId: c.id, button: { label: 'Apri e firma il contratto', url: link } });
+  const res = await sendMail({ to: input.to, name: input.name, subject, text, kind: 'invito', contractId: c.id, button: { label: 'Apri e firma il contratto', url: link } });
   await audit(c.id, 'inviato', actorOf(user), req, { to: input.to, subject, expiresAt: expires.toISOString(), email: res.simulated ? 'simulata' : res.ok ? 'inviata' : 'errore' });
   await fireWebhook('contratto.inviato', updated);
   return { ...res, link };

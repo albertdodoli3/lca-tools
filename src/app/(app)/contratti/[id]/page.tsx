@@ -52,7 +52,7 @@ export default async function ContractPage({ params }: { params: Promise<{ id: s
         anonymized: !!c.anonymizedAt,
       }}
       events={events.map((e) => ({ id: e.id, label: EVENT_LABEL[e.type] ?? e.type, type: e.type, at: e.createdAt.toISOString(), actor: e.actorType === 'utente' ? e.actorLabel ?? 'Operatore' : e.actorType === 'cliente' ? 'Cliente' : 'Sistema', ip: e.ip, userAgent: e.userAgent, data: e.data as Record<string, unknown>, hash: e.hash }))}
-      emails={emails.map((m) => ({ id: m.id, kind: m.kind, to: m.to, subject: m.subject, body: m.body, status: m.status, error: m.error, at: m.createdAt.toISOString() }))}
+      emails={emails.map((m) => ({ id: m.id, kind: m.kind, channel: m.channel, to: m.to, subject: m.subject, body: m.body, status: m.status, error: m.error, at: m.createdAt.toISOString() }))}
       settings={{ companySignature: s.companySignatureUrl, companySignerName: s.companySignerName, linkExpiryDays: s.linkExpiryDays, emailConfigured: mailOk }}
       chainOk={chainOk}
     />

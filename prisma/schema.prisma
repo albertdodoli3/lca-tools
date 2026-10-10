@@ -1,0 +1,217 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  SELLER
+}
+
+enum ContractStatus {
+  BOZZA
+  INVIATO
+  APERTO
+  SBLOCCATO
+  FIRMATO
+  RECEDUTO
+  ANNULLATO
+  SCADUTO
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  role         Role      @default(SELLER)
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  lastLoginAt  DateTime?
+
+  contracts     Contract[]
+  notifications Notification[]
+}
+
+/// Riga unica (id = 1) con le impostazioni dell'azienda.
+model Settings {
+  id                   Int     @id @default(1)
+  companyName          String  @default("Love Coach Academy S.r.l.s.")
+  brandColor           String  @default("#9b2c55")
+  logoDataUrl          String?
+  companySignerName    String  @default("Giada Baccianella")
+  companySignatureUrl  String?
+  senderName           String  @default("Love Coach Academy")
+  senderEmail          String  @default("")
+  replyTo              String  @default("")
+  smtpHost             String  @default("")
+  smtpPort             Int     @default(587)
+  smtpSecure           Boolean @default(false)
+  smtpUser             String  @default("")
+  smtpPassEnc          String  @default("")
+  notifyEmails         String  @default("")
+  linkExpiryDays       Int     @default(7)
+  reminderDays         String  @default("2,5")
+  otpMinutes           Int     @default(10)
+  signedRetentionYears Int     @default(10)
+  unsignedRetentionMonths Int  @default(12)
+  defaultEmailSubject  String  @default("Il tuo contratto {{titolo}} è pronto per la firma")
+  defaultEmailBody     String  @default("Ciao {{nome}},\n\ncome concordato ti inviamo il contratto \"{{titolo}}\" con la Scheda d'ordine già compilata.\n\nPer completarlo:\n1. apri il link qui sotto;\n2. conferma la tua identità con il codice che riceverai via email;\n3. compila i tuoi dati e firma.\n\n{{link}}\n\nIl link è valido fino al {{scadenza}}.\n\nA presto,\n{{azienda}}")
+  webhookUrls          String  @default("")
+  webhookSecret        String  @default("")
+  privacyNoticeUrl     String  @default("")
+  updatedAt            DateTime @updatedAt
+}
+
+model Template {
+  id          String   @id @default(cuid())
+  name        String
+  description String   @default("")
+  html        String
+  /// FieldDef[] (vedi src/lib/fields.ts)
+  fields      Json
+  version     Int      @default(1)
+  archived    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  contracts Contract[]
+}
+
+model Contract {
+  id              String         @id @default(cuid())
+  code            String         @unique
+  title           String
+  status          ContractStatus @default(BOZZA)
+  templateId      String?
+  template        Template?      @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  templateVersion Int
+  /// Copia del template al momento della creazione: le modifiche successive al template non toccano il contratto.
+  html            String
+  fields          Json
+  values          Json           @default("{}")
+  ownerId         String
+  owner           User           @relation(fields: [ownerId], references: [id])
+
+  recipientName   String         @default("")
+  recipientEmail  String         @default("")
+  emailSubject    String         @default("")
+  emailBody       String         @default("")
+
+  tokenHash       String?        @unique
+  tokenEnc        String?
+  tokenExpiresAt  DateTime?
+  remindersSent   Int            @default(0)
+
+  sentAt          DateTime?
+  openedAt        DateTime?
+  otpVerifiedAt   DateTime?
+  signedAt        DateTime?
+  withdrawnAt     DateTime?
+  cancelledAt     DateTime?
+  expiredAt       DateTime?
+
+  signerIp        String?
+  signerUserAgent String?
+  /// HTML finale firmato (congelato al momento della firma)
+  signedHtml      String?
+  /// SHA-256 del contenuto firmato (HTML finale)
+  documentHash    String?
+  /// SHA-256 del PDF finale
+  pdfHash         String?
+  pdf             Bytes?
+  anonymizedAt    DateTime?
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  events        AuditEvent[]
+  otps          OtpCode[]
+  emails        EmailLog[]
+  notifications Notification[]
+
+  @@index([status])
+  @@index([ownerId])
+}
+
+model OtpCode {
+  id         String    @id @default(cuid())
+  contractId String
+  contract   Contract  @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  codeHash   String
+  sentTo     String
+  expiresAt  DateTime
+  attempts   Int       @default(0)
+  usedAt     DateTime?
+  ip         String?
+  createdAt  DateTime  @default(now())
+
+  @@index([contractId, createdAt])
+}
+
+/// Registro a catena di hash: ogni evento include l'hash del precedente,
+/// così qualsiasi modifica successiva al registro è rilevabile.
+model AuditEvent {
+  id         String   @id @default(cuid())
+  contractId String
+  contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  type       String
+  actorType  String
+  actorId    String?
+  actorLabel String?
+  ip         String?
+  userAgent  String?
+  data       Json     @default("{}")
+  createdAt  DateTime @default(now())
+  prevHash   String
+  hash       String
+
+  @@index([contractId, createdAt])
+}
+
+model EmailLog {
+  id         String    @id @default(cuid())
+  contractId String?
+  contract   Contract? @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  kind       String
+  to         String
+  subject    String
+  body       String
+  status     String
+  error      String?
+  createdAt  DateTime  @default(now())
+
+  @@index([contractId])
+}
+
+model Notification {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contractId String?
+  contract   Contract? @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  message    String
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, readAt])
+}
+
+model WebhookLog {
+  id         String   @id @default(cuid())
+  event      String
+  url        String
+  status     Int?
+  error      String?
+  contractId String?
+  createdAt  DateTime @default(now())
+}
+
+model Counter {
+  id    String @id
+  value Int    @default(0)
+}

@@ -1,0 +1,58 @@
+{
+  "name": "lca-contratti",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "prisma generate && next build",
+    "start": "prisma migrate deploy && next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "tsx prisma/seed.ts"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@fontsource/dancing-script": "^5.2.8",
+    "@prisma/client": "^6.16.2",
+    "@tiptap/core": "^2.26.1",
+    "@tiptap/extension-table": "^2.26.1",
+    "@tiptap/extension-table-cell": "^2.26.1",
+    "@tiptap/extension-table-header": "^2.26.1",
+    "@tiptap/extension-table-row": "^2.26.1",
+    "@tiptap/extension-text-align": "^2.26.1",
+    "@tiptap/extension-underline": "^2.26.1",
+    "@tiptap/pm": "^2.26.1",
+    "@tiptap/react": "^2.26.1",
+    "@tiptap/starter-kit": "^2.26.1",
+    "bcryptjs": "^3.0.2",
+    "jose": "^6.1.0",
+    "mammoth": "^1.11.0",
+    "next": "^15.5.27",
+    "nodemailer": "^7.0.6",
+    "playwright-core": "^1.55.1",
+    "prisma": "^6.16.2",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "sanitize-html": "^2.17.0",
+    "server-only": "^0.0.1",
+    "tsx": "^4.20.5",
+    "zod": "^4.1.11"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@types/node": "^22.18.6",
+    "@types/nodemailer": "^7.0.1",
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
+    "@types/sanitize-html": "^2.16.0",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^9.36.0",
+    "eslint-config-next": "^15.5.27",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.9.2"
+  }
+}

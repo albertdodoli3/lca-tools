@@ -82,6 +82,12 @@ Se GoHighLevel non risponde (token scaduto, errore), l’email parte in automati
 
 **SMTP (obbligatorio per OTP e copie firmate)**: va bene la casella che usate già, per esempio Google Workspace (`smtp.gmail.com`, porta 465, SSL, con una “password per le app”) oppure il provider della vostra casella aziendale. Senza SMTP l’app resta in modalità test per le email via SMTP.
 
+### Railway e porte SMTP bloccate: usa la chiave API di Brevo
+
+Railway blocca le connessioni SMTP in uscita (porte 465 e 587) sui piani Trial e Hobby. In quel caso l’invio via SMTP fallisce dopo circa 15 secondi con “Connection timeout”.
+
+Soluzione: in Brevo vai su *SMTP e API → Chiavi API e MCP → Genera una nuova chiave API* e incolla la chiave (`xkeysib-…`) nel campo **Chiave API Brevo** delle Impostazioni. Da quel momento tutte le email dirette (OTP, copie firmate con PDF allegato, conferme di recesso, avvisi) partono tramite l’API HTTPS di Brevo e i campi SMTP vengono ignorati. Il mittente deve essere un indirizzo verificato in Brevo (es. `info@conquistalei.com` con dominio autenticato).
+
 ## GoHighLevel (webhook)
 
 In GHL crea un Workflow con trigger **Inbound Webhook**, copia l’URL in *Impostazioni → Webhook*, poi fai un invio di prova per mappare i campi.

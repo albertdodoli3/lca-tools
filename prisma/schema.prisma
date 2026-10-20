@@ -53,6 +53,8 @@ model Settings {
   smtpSecure           Boolean @default(false)
   smtpUser             String  @default("")
   smtpPassEnc          String  @default("")
+  /// Chiave API Brevo (xkeysib-…): invio via HTTPS, utile dove le porte SMTP sono bloccate (es. Railway)
+  brevoApiKeyEnc       String  @default("")
   notifyEmails         String  @default("")
   /// "smtp" = tutto via SMTP; "misto" = invito e promemoria via GoHighLevel, OTP/copie/notifiche via SMTP
   emailMode            String  @default("smtp")

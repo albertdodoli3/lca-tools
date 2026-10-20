@@ -193,7 +193,7 @@ export function ContractWorkspace({ contract: c, events, emails, settings, chain
             <details key={m.id} className="card p-4">
               <summary className="flex cursor-pointer flex-wrap items-center gap-2 text-sm">
                 <span className={`badge ${m.status === 'inviata' ? 'bg-emerald-50 text-emerald-800 ring-emerald-300' : m.status === 'simulata' ? 'bg-amber-50 text-amber-800 ring-amber-300' : 'bg-rose-50 text-rose-800 ring-rose-300'}`}>{m.status}</span>
-                <span className="badge bg-zinc-50 text-zinc-600 ring-zinc-300">{m.channel === 'ghl' ? 'GoHighLevel' : 'SMTP'}</span>
+                <span className="badge bg-zinc-50 text-zinc-600 ring-zinc-300">{m.channel === 'ghl' ? 'GoHighLevel' : m.channel === 'brevo' ? 'Brevo API' : 'SMTP'}</span>
                 <span className="font-medium">{m.subject}</span>
                 <span className="text-xs text-zinc-500">a {m.to} · {formatDateTime(m.at)}</span>
               </summary>

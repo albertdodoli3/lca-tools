@@ -1,8 +1,8 @@
 'use client';
-import { useActionState } from 'react';
+import { startTransition, useActionState } from 'react';
 import { saveSettings, testEmail, testGhl } from './actions';
 
-type S = Record<string, string | number | boolean | null> & { hasSmtpPass: boolean; hasGhlToken: boolean };
+type S = Record<string, string | number | boolean | null> & { hasSmtpPass: boolean; hasGhlToken: boolean; hasBrevoKey: boolean };
 
 function Section({ title, desc, children }: { title: string; desc?: string; children: React.ReactNode }) {
   return (
@@ -33,7 +33,15 @@ export function SettingsForm({ s, appUrl }: { s: S; appUrl: string }) {
   return (
     <div className="max-w-5xl space-y-5">
       <h1 className="text-2xl font-semibold">Impostazioni</h1>
-      <form action={action} className="space-y-5">
+      {/* Invio manuale: con l'attributo action React svuoterebbe il modulo anche in caso di errore */}
+      <form
+        className="space-y-5"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const fd = new FormData(e.currentTarget);
+          startTransition(() => action(fd));
+        }}
+      >
         <Section title="Azienda e brand" desc="Logo e colore usati nell’app, nella pagina di firma e nelle email.">
           <F label="Ragione sociale" name="companyName" defaultValue={s.companyName as string} />
           <div className="grid gap-4 sm:grid-cols-2">
@@ -67,6 +75,15 @@ export function SettingsForm({ s, appUrl }: { s: S; appUrl: string }) {
             <F label="Email mittente" name="senderEmail" type="email" defaultValue={s.senderEmail as string} placeholder="contratti@tuodominio.it" />
             <F label="Rispondi a (Reply-To)" name="replyTo" type="email" defaultValue={s.replyTo as string} placeholder="info@conquistalei.com" />
             <F label="Notifiche al team (separate da virgola)" name="notifyEmails" defaultValue={s.notifyEmails as string} />
+          </div>
+          <div className="rounded-lg bg-zinc-50 p-4 ring-1 ring-zinc-200">
+            <label className="label" htmlFor="brevoApiKey">Chiave API Brevo (consigliata su Railway)</label>
+            <input className="input" id="brevoApiKey" name="brevoApiKey" type="password" autoComplete="off" placeholder="xkeysib-…" />
+            <p className="mt-1 text-xs text-zinc-500">
+              {s.hasBrevoKey ? 'Già impostata: le email partono tramite l’API di Brevo e i campi SMTP qui sotto vengono ignorati. Lascia vuoto per non cambiarla. ' : 'Se impostata, le email partono tramite l’API HTTPS di Brevo invece che via SMTP (Railway blocca le porte SMTP sui piani Trial e Hobby). '}
+              Brevo → SMTP e API → Chiavi API → Genera. Salvata cifrata.
+            </p>
+            {s.hasBrevoKey && <label className="mt-1 flex items-center gap-1 text-xs"><input type="checkbox" name="brevoApiKey_remove" value="1" /> Rimuovi chiave API (torna a usare l’SMTP)</label>}
           </div>
           <div className="grid gap-4 sm:grid-cols-3">
             <F label="Server SMTP" name="smtpHost" defaultValue={s.smtpHost as string} placeholder="smtp-relay.brevo.com" />
@@ -137,7 +154,7 @@ export function SettingsForm({ s, appUrl }: { s: S; appUrl: string }) {
         </div>
       </form>
 
-      <form action={testAction} className="card flex flex-wrap items-end gap-3 p-5">
+      <form onSubmit={(e) => { e.preventDefault(); const fd = new FormData(e.currentTarget); startTransition(() => testAction(fd)); }} className="card flex flex-wrap items-end gap-3 p-5">
         <div className="flex-1">
           <label className="label" htmlFor="to">Prova invio email</label>
           <input className="input" id="to" name="to" type="email" placeholder="tua@email.it" />
@@ -147,7 +164,7 @@ export function SettingsForm({ s, appUrl }: { s: S; appUrl: string }) {
         {testState?.error && <p className="w-full text-sm text-rose-700">{testState.error}</p>}
       </form>
 
-      <form action={ghlAction} className="card flex flex-wrap items-end gap-3 p-5">
+      <form onSubmit={(e) => { e.preventDefault(); const fd = new FormData(e.currentTarget); startTransition(() => ghlAction(fd)); }} className="card flex flex-wrap items-end gap-3 p-5">
         <div className="flex-1">
           <label className="label" htmlFor="ghl-to">Prova invio tramite GoHighLevel</label>
           <input className="input" id="ghl-to" name="to" type="email" placeholder="tua@email.it" />

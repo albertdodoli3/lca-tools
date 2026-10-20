@@ -27,6 +27,7 @@ export async function saveSettings(_: unknown, f: FormData) {
     const signature = await imageField(f, 'signature');
     const pass = String(f.get('smtpPass') ?? '');
     const ghlToken = String(f.get('ghlToken') ?? '').trim();
+    const brevoKey = String(f.get('brevoApiKey') ?? '').trim();
     const color = str(f, 'brandColor');
     await db.settings.update({
       where: { id: 1 },
@@ -42,6 +43,8 @@ export async function saveSettings(_: unknown, f: FormData) {
         smtpSecure: f.get('smtpSecure') === 'on',
         smtpUser: str(f, 'smtpUser', 200),
         ...(pass ? { smtpPassEnc: encrypt(pass) } : {}),
+        ...(brevoKey ? { brevoApiKeyEnc: encrypt(brevoKey) } : {}),
+        ...(f.get('brevoApiKey_remove') === '1' ? { brevoApiKeyEnc: '' } : {}),
         emailMode: f.get('emailMode') === 'misto' ? 'misto' : 'smtp',
         ghlLocationId: str(f, 'ghlLocationId', 100),
         ghlEmailFrom: str(f, 'ghlEmailFrom', 200).toLowerCase(),

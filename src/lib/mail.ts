@@ -18,7 +18,7 @@ type Mail = {
 
 export async function emailConfigured() {
   const s = await getSettings();
-  return Boolean(s.smtpHost && s.senderEmail);
+  return Boolean(s.senderEmail && (s.brevoApiKeyEnc || s.smtpHost));
 }
 
 function layout(text: string, brand: string, company: string, button?: Mail['button']) {
@@ -50,6 +50,7 @@ export async function ghlConfigured() {
 
 // Sovrascrivibile solo per i test
 const GHL_API = process.env.GHL_API_URL || 'https://services.leadconnectorhq.com';
+const BREVO_API = process.env.BREVO_API_URL || 'https://api.brevo.com/v3/smtp/email';
 
 async function ghlFetch(path: string, token: string, version: string, body: unknown) {
   const res = await fetch(GHL_API + path, {
@@ -86,6 +87,29 @@ export async function sendViaGhl(m: { to: string; name?: string; subject: string
   });
 }
 
+/** Invio tramite API HTTPS di Brevo: funziona anche dove le porte SMTP in uscita sono bloccate. */
+async function sendViaBrevoApi(m: Mail, html: string, text: string) {
+  const s = await getSettings();
+  const res = await fetch(BREVO_API, {
+    method: 'POST',
+    headers: { 'api-key': decrypt(s.brevoApiKeyEnc), 'content-type': 'application/json', accept: 'application/json' },
+    body: JSON.stringify({
+      sender: { name: s.senderName, email: s.senderEmail },
+      to: [{ email: m.to }],
+      ...(s.replyTo ? { replyTo: { email: s.replyTo } } : {}),
+      subject: m.subject,
+      htmlContent: html,
+      textContent: text,
+      ...(m.attachments?.length ? { attachment: m.attachments.map((a) => ({ name: a.filename, content: a.content.toString('base64') })) } : {}),
+    }),
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!res.ok) {
+    const data = (await res.json().catch(() => ({}))) as { message?: string; code?: string };
+    throw new Error(`Brevo ${res.status}: ${data.message ?? data.code ?? res.statusText}`);
+  }
+}
+
 async function sendViaSmtp(m: Mail, html: string, text: string) {
   const s = await getSettings();
   const transport = nodemailer.createTransport({
@@ -93,6 +117,10 @@ async function sendViaSmtp(m: Mail, html: string, text: string) {
     port: s.smtpPort,
     secure: s.smtpSecure,
     auth: s.smtpUser ? { user: s.smtpUser, pass: decrypt(s.smtpPassEnc) } : undefined,
+    // Senza limiti una porta bloccata lascerebbe la richiesta appesa per minuti
+    connectionTimeout: 15_000,
+    greetingTimeout: 15_000,
+    socketTimeout: 30_000,
   });
   await transport.sendMail({ from: { name: s.senderName, address: s.senderEmail }, replyTo: s.replyTo || undefined, to: m.to, subject: m.subject, text, html, attachments: m.attachments });
 }
@@ -101,6 +129,7 @@ async function sendViaSmtp(m: Mail, html: string, text: string) {
  * Invia un'email scegliendo il canale:
  * - modalità "misto": invito e promemoria via GoHighLevel (con ripiego su SMTP se GHL fallisce);
  *   OTP, copia firmata, conferma di recesso e notifiche al team sempre via SMTP;
+ * - con la chiave API Brevo impostata l'invio diretto usa l'API HTTPS invece dell'SMTP;
  * - senza SMTP configurato le email via SMTP vengono solo registrate (modalità test).
  */
 export async function sendMail(m: Mail & { name?: string }): Promise<Result> {
@@ -124,18 +153,20 @@ export async function sendMail(m: Mail & { name?: string }): Promise<Result> {
     }
   }
 
-  if (!s.smtpHost || !s.senderEmail) {
+  const direct = s.brevoApiKeyEnc ? 'brevo' : 'smtp';
+  if (!s.senderEmail || (direct === 'smtp' && !s.smtpHost)) {
     await log('smtp', 'simulata');
     if (process.env.NODE_ENV !== 'production') console.log(`\n[EMAIL SIMULATA] a ${m.to}: ${m.subject}\n${text}\n`);
     return { ok: true, simulated: true, error: ghlError };
   }
   try {
-    await sendViaSmtp(m, html, text);
-    await log('smtp', 'inviata');
+    if (direct === 'brevo') await sendViaBrevoApi(m, html, text);
+    else await sendViaSmtp(m, html, text);
+    await log(direct, 'inviata');
     return { ok: true, simulated: false, channel: 'smtp' };
   } catch (e) {
     const error = e instanceof Error ? e.message : String(e);
-    await log('smtp', 'errore', error);
+    await log(direct, 'errore', error);
     return { ok: false, simulated: false, error: ghlError ? `${ghlError}; SMTP: ${error}` : error };
   }
 }

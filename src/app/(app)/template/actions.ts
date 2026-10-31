@@ -46,7 +46,13 @@ function cleanFields(html: string, input: FieldDef[]): FieldDef[] {
       required: !!src.required,
       options: (src.type === 'choice' || src.type === 'select') ? (src.options ?? []).map((o) => String(o).trim()).filter(Boolean).slice(0, 30) : undefined,
       help: src.help ? String(src.help).slice(0, 500) : undefined,
+      shortLabel: src.shortLabel ? String(src.shortLabel).slice(0, 120) : undefined,
+      dependsOn: src.dependsOn || undefined,
     };
+  }).map((f, _i, all) => {
+    // dependsOn valido solo se punta a una casella del cliente diversa dal campo stesso
+    const parent = all.find((p) => p.key === f.dependsOn);
+    return parent && parent.type === 'checkbox' && parent.key !== f.key ? f : { ...f, dependsOn: undefined };
   });
 }
 

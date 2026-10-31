@@ -11,6 +11,46 @@ const A = (key: string, label: string, type: FieldDef['type'] = 'text', extra: P
 const C = (key: string, label: string, type: FieldDef['type'] = 'text', extra: Partial<FieldDef> = {}): FieldDef => ({ key, label, type, filledBy: 'cliente', required: true, ...extra });
 const opt = (key: string, label: string, options: string[], extra: Partial<FieldDef> = {}) => A(key, label, 'choice', { options, ...extra });
 
+/** Regole delle caselle concordate con LCA: tutte vuote all'inizio, compilate solo dal cliente. */
+const DECL: Record<string, Partial<FieldDef>> = {
+  consenso_dati_particolari: {
+    required: true,
+    shortLabel: 'Consenso dati sentimentali e sessuali (obbligatorio)',
+    help: 'Obbligatoria: il percorso riguarda la sfera sentimentale, relazionale e sessuale e senza questo consenso non possiamo svolgerlo.',
+  },
+  dich_a: {
+    required: false,
+    shortLabel: 'Dichiarazione A – avvio anticipato di coaching, chat e attività in presenza',
+    help: 'Facoltativa per firmare. Necessaria se vuoi iniziare subito coaching, chat ed eventuali attività in presenza: se non la selezioni, inizieranno dopo i 14 giorni del recesso. Se la selezioni e poi recedi, paghi solo le prestazioni già ricevute.',
+  },
+  dich_b: {
+    required: false,
+    shortLabel: 'Dichiarazione B – accesso immediato ai contenuti digitali',
+    help: 'Facoltativa per firmare. Necessaria se vuoi ricevere subito i videocorsi: con l’accesso perdi il diritto di recesso su quei contenuti. Se non la selezioni, li riceverai dopo i 14 giorni del recesso.',
+  },
+  consenso_reg_individuali: {
+    required: false,
+    shortLabel: 'Registrazione delle sessioni individuali',
+    help: 'Facoltativa: serve a verificare la qualità del servizio e a tutelare le parti. Puoi rifiutarla e seguire comunque il percorso.',
+  },
+  consenso_promo: {
+    required: false,
+    shortLabel: 'Uso promozionale (testimonianze)',
+    help: 'Facoltativa: non serve per svolgere il coaching. Se autorizzi, scegli sotto una sola modalità.',
+  },
+  promo_forma: {
+    required: false,
+    dependsOn: 'consenso_promo',
+    options: ['testimonianza scritta anonima', 'testimonianza scritta con nome', 'immagine e voce'],
+    shortLabel: 'Forma della testimonianza',
+  },
+  consenso_reg_gruppo: {
+    required: false,
+    shortLabel: 'Registrazione nelle sessioni di gruppo',
+    help: 'Facoltativa: se non acconsenti partecipi in forma non identificabile (art. 16.5).',
+  },
+};
+
 const fields: FieldDef[] = [
   // Dati del cliente (epigrafe)
   C('cliente_nome_cognome', 'Nome e cognome'),
@@ -27,15 +67,13 @@ const fields: FieldDef[] = [
   C('cliente_telefono', 'Telefono', 'phone'),
 
   // Dichiarazioni e consensi
-  C('dich_a', 'Dichiarazione A (esecuzione anticipata dei servizi). Chiedo espressamente che l’esecuzione delle sessioni, delle attività in presenza e dell’assistenza in chat inizi durante il periodo di recesso. Prendo atto che, se recederò, dovrò pagare un importo proporzionale alle prestazioni fornite fino alla comunicazione del recesso, determinato secondo l’art. 12.3, e che perderò il diritto di recesso se le prestazioni saranno integralmente eseguite prima della scadenza del termine.', 'checkbox', { required: false }),
-  C('dich_b', 'Dichiarazione B (contenuti digitali). Acconsento espressamente a che la fornitura dei contenuti digitali indicati nella Scheda d’ordine inizi immediatamente, durante il periodo di recesso, e accetto di perdere il diritto di recesso relativo a tali contenuti con l’inizio della fornitura, che avviene con l’invio del collegamento per la creazione delle credenziali di accesso.', 'checkbox', { required: false }),
-  C('consenso_dati_particolari', 'Acconsento al trattamento delle informazioni sulla mia vita sentimentale e sessuale e sul mio orientamento sessuale per l’esecuzione del Percorso, come descritto nell’Allegato 3 (necessario per la fruizione del Percorso).', 'checkbox', { required: true }),
-  C('consenso_reg_individuali', 'Acconsento alla registrazione delle sessioni individuali ai sensi dell’art. 16.1 (facoltativo).', 'checkbox', { required: false }),
-  C('consenso_promo', 'Autorizzo l’uso promozionale descritto nella liberatoria dell’Allegato 3 (facoltativo), nelle forme che seleziono qui sotto.', 'checkbox', { required: false }),
-  C('promo_anonima', 'Uso promozionale: testimonianza scritta anonima', 'checkbox', { required: false }),
-  C('promo_nome', 'Uso promozionale: testimonianza scritta con nome', 'checkbox', { required: false }),
-  C('promo_immagine_voce', 'Uso promozionale: immagine e voce', 'checkbox', { required: false }),
-  C('consenso_reg_gruppo', 'Acconsento alla registrazione della mia immagine, della mia voce e del mio nome nelle sessioni di gruppo cui partecipo e alla messa a disposizione della registrazione agli altri Clienti iscritti alla medesima sessione, ai sensi degli artt. 16.3 e 16.4. Prendo atto che, in mancanza di consenso, la sessione è comunque registrata e che partecipo secondo le modalità dell’art. 16.5, che escludono la mia identificabilità.', 'checkbox', { required: false }),
+  C('dich_a', 'Dichiarazione A (esecuzione anticipata dei servizi). Chiedo espressamente che l’esecuzione delle sessioni, delle attività in presenza e dell’assistenza in chat inizi durante il periodo di recesso. Prendo atto che, se recederò, dovrò pagare un importo proporzionale alle prestazioni fornite fino alla comunicazione del recesso, determinato secondo l’art. 12.3, e che perderò il diritto di recesso se le prestazioni saranno integralmente eseguite prima della scadenza del termine.', 'checkbox', DECL.dich_a),
+  C('dich_b', 'Dichiarazione B (contenuti digitali). Acconsento espressamente a che la fornitura dei contenuti digitali indicati nella Scheda d’ordine inizi immediatamente, durante il periodo di recesso, e accetto di perdere il diritto di recesso relativo a tali contenuti con l’inizio della fornitura, che avviene con l’invio del collegamento per la creazione delle credenziali di accesso.', 'checkbox', DECL.dich_b),
+  C('consenso_dati_particolari', 'Acconsento al trattamento delle informazioni sulla mia vita sentimentale e sessuale e sul mio orientamento sessuale per l’esecuzione del Percorso, come descritto nell’Allegato 3 (necessario per la fruizione del Percorso).', 'checkbox', DECL.consenso_dati_particolari),
+  C('consenso_reg_individuali', 'Acconsento alla registrazione delle sessioni individuali ai sensi dell’art. 16.1 (facoltativo).', 'checkbox', DECL.consenso_reg_individuali),
+  C('consenso_promo', 'Autorizzo l’uso promozionale descritto nella liberatoria dell’Allegato 3 (facoltativo), nella forma che scelgo qui sotto.', 'checkbox', DECL.consenso_promo),
+  C('promo_forma', 'Forma dell’uso promozionale (scegline una sola)', 'choice', DECL.promo_forma),
+  C('consenso_reg_gruppo', 'Acconsento alla registrazione della mia immagine, della mia voce e del mio nome nelle sessioni di gruppo cui partecipo e alla messa a disposizione della registrazione agli altri Clienti iscritti alla medesima sessione, ai sensi degli artt. 16.3 e 16.4. Prendo atto che, in mancanza di consenso, la sessione è comunque registrata e che partecipo secondo le modalità dell’art. 16.5, che escludono la mia identificabilità.', 'checkbox', DECL.consenso_reg_gruppo),
 
   // Sottoscrizione
   C('luogo_firma', 'Luogo della firma (città)'),
@@ -98,8 +136,38 @@ const fields: FieldDef[] = [
   A('sost_totale', 'Piano sostitutivo — totale (€)', 'currency', { required: false }),
 ];
 
+const PROMO_RE = /\{\{\s*promo_anonima\s*\}\}\s*testimonianza scritta anonima\s*\{\{\s*promo_nome\s*\}\}\s*testimonianza scritta con nome\s*\{\{\s*promo_immagine_voce\s*\}\}\s*immagine e voce/;
+
+/**
+ * Aggiornamento dei template LCA già esistenti (idempotente):
+ * le tre modalità della testimonianza diventano una scelta unica, abilitata solo dal consenso,
+ * e le caselle ricevono le regole di obbligatorietà e le spiegazioni concordate.
+ * I contratti già creati non cambiano: hanno la loro copia del template.
+ */
+async function upgradeExisting() {
+  const all = await db.template.findMany();
+  for (const t of all) {
+    const current = t.fields as unknown as FieldDef[];
+    if (!current.some((f) => f.key === 'promo_anonima') || current.some((f) => f.key === 'promo_forma')) continue;
+    if (!PROMO_RE.test(t.html)) {
+      console.log(`Template "${t.name}": testo delle testimonianze modificato a mano, aggiornamento saltato.`);
+      continue;
+    }
+    const html = t.html.replace(PROMO_RE, '{{promo_forma}}');
+    const keys = [...new Set([...html.matchAll(/\{\{\s*(\w+)\s*\}\}/g)].map((m) => m[1]))];
+    const next = keys.map((k) => {
+      const existing = current.find((f) => f.key === k);
+      if (k === 'promo_forma') return fields.find((f) => f.key === k)!;
+      return existing && DECL[k] ? { ...existing, ...DECL[k], filledBy: 'cliente' as const } : existing ?? fields.find((f) => f.key === k)!;
+    });
+    await db.template.update({ where: { id: t.id }, data: { html, fields: next as unknown as Prisma.InputJsonValue, version: { increment: 1 } } });
+    console.log(`Template "${t.name}" aggiornato: testimonianze a scelta unica e regole delle caselle.`);
+  }
+}
+
 async function main() {
   await db.settings.upsert({ where: { id: 1 }, create: { id: 1 }, update: {} });
+  await upgradeExisting();
   const name = 'Contratto per il Percorso di Affiancamento';
   if (await db.template.findFirst({ where: { name } })) {
     console.log('Template già presente, nessuna modifica.');

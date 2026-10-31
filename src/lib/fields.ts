@@ -35,6 +35,10 @@ export type FieldDef = {
   required: boolean;
   options?: string[];
   help?: string;
+  /** Chiave di una casella: il campo si compila solo se quella casella è spuntata (ed è allora obbligatorio). */
+  dependsOn?: string;
+  /** Etichetta breve per i riepiloghi (es. "Dichiarazione A – avvio anticipato"). */
+  shortLabel?: string;
 };
 
 export type SignatureValue = {
@@ -141,11 +145,20 @@ export function validateField(f: FieldDef, v: unknown): string | null {
   }
 }
 
+/** Un campo con dependsOn è attivo solo se la casella da cui dipende è spuntata. */
+export function isActive(f: FieldDef, values: Values): boolean {
+  return !f.dependsOn || values[f.dependsOn] === true;
+}
+
 export function validateAll(fields: FieldDef[], values: Values, who: FilledBy): Record<string, string> {
   const errors: Record<string, string> = {};
   for (const f of fields) {
     if (f.filledBy !== who) continue;
-    const e = validateField(f, values[f.key]);
+    if (!isActive(f, values)) {
+      if (!isEmpty(values[f.key]) && values[f.key] !== false) errors[f.key] = 'Non selezionabile senza la relativa autorizzazione';
+      continue;
+    }
+    const e = validateField(f.dependsOn ? { ...f, required: true } : f, values[f.key]);
     if (e) errors[f.key] = e;
   }
   return errors;

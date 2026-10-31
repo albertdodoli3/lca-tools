@@ -7,7 +7,7 @@ import { contractScope, requireUser } from '@/lib/auth';
 import { audit } from '@/lib/audit';
 import { reqInfo } from '@/lib/request';
 import { buildSignedPdf, cancelContract, fieldsOf, nextCode, retractContract, sendContract, valuesOf } from '@/lib/contracts';
-import { normalizeValue, validateAll, validateField, type Values } from '@/lib/fields';
+import { normalizeValue, validateAll, type Values } from '@/lib/fields';
 
 async function loadOwned(user: User, id: string) {
   const c = await db.contract.findFirst({ where: { id, ...contractScope(user) } });
@@ -46,12 +46,10 @@ export async function saveContract(id: string, title: string, input: Values) {
   const c = await loadOwned(user, id);
   if (c.status !== 'BOZZA') return { error: 'Il contratto è già stato inviato: ritira l’invio per modificarlo.' };
   const values: Values = {};
-  // L'azienda compila i propri campi e può precompilare quelli del cliente (che potrà modificarli)
+  // Il venditore compila solo la scheda d'ordine: dati, dichiarazioni, consensi e firme sono del cliente
   for (const f of fieldsOf(c)) {
-    if (f.filledBy === 'auto' || f.type === 'signature' || !(f.key in input)) continue;
-    const v = normalizeValue(f, input[f.key]);
-    if (f.filledBy === 'cliente' && validateField({ ...f, required: false }, v)) continue;
-    values[f.key] = v;
+    if (f.filledBy !== 'azienda' || !(f.key in input)) continue;
+    values[f.key] = normalizeValue(f, input[f.key]);
   }
   await db.contract.update({ where: { id }, data: { title: title.slice(0, 200) || c.title, values: values as Prisma.InputJsonValue } });
   await audit(id, 'modificato', actor(user), await reqInfo());

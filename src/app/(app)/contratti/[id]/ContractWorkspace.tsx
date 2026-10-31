@@ -33,7 +33,7 @@ export function ContractWorkspace({ contract: c, events, emails, settings, chain
   const editable = c.status === 'BOZZA';
 
   const companyFields = c.fields.filter((f) => f.filledBy === 'azienda');
-  const prefillable = c.fields.filter((f) => f.filledBy === 'cliente' && !['signature', 'checkbox'].includes(f.type));
+  const declarations = c.fields.filter((f) => f.filledBy === 'cliente' && (f.type === 'checkbox' || f.dependsOn));
   const html = useMemo(
     () => c.signedHtml ?? renderContract(c.html, c.fields, values, 'preview', { companySignature: settings.companySignature, companySignerName: settings.companySignerName, code: c.code, sentAt: c.sentAt }),
     [c, values, settings],
@@ -117,6 +117,8 @@ export function ContractWorkspace({ contract: c, events, emails, settings, chain
         ))}
       </div>
 
+      {tab === 'scheda' && c.signedAt && !c.anonymized && !!declarations.length && <DeclarationsSummary fields={declarations} values={c.values} />}
+
       {tab === 'scheda' && (
         <div className={editable ? 'grid gap-6 lg:grid-cols-[minmax(320px,420px)_1fr]' : ''}>
           {editable && (
@@ -131,17 +133,9 @@ export function ContractWorkspace({ contract: c, events, emails, settings, chain
                 ))}
                 {!companyFields.length && <p className="text-sm text-zinc-500">Questo template non ha campi per l’azienda.</p>}
               </section>
-              {!!prefillable.length && (
-                <details className="card p-4">
-                  <summary className="cursor-pointer font-semibold">Precompila dati cliente <span className="text-xs font-normal text-zinc-500">(facoltativo)</span></summary>
-                  <p className="mb-3 mt-1 text-xs text-zinc-500">Il cliente vedrà questi dati già inseriti e potrà correggerli prima di firmare.</p>
-                  <div className="space-y-4">
-                    {prefillable.map((f) => (
-                      <FieldInput key={f.key} field={{ ...f, required: false }} value={values[f.key]} onChange={(v) => set(f.key, v)} onFocus={() => focusKey(previewRef.current, f.key)} />
-                    ))}
-                  </div>
-                </details>
-              )}
+              <p className="rounded-lg bg-zinc-50 p-3 text-xs text-zinc-600 ring-1 ring-zinc-200">
+                Dati personali, dichiarazioni, consensi e firme li compila <b>solo il cliente</b>, dopo lo sblocco con OTP. Le caselle gli arrivano tutte vuote.
+              </p>
             </div>
           )}
           <div className={`card min-w-0 p-5 sm:p-8 ${editable ? 'lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto' : ''}`}>
@@ -207,6 +201,44 @@ export function ContractWorkspace({ contract: c, events, emails, settings, chain
 
       {sendOpen && <SendPanel c={c} settings={settings} onClose={() => setSendOpen(false)} onResult={(text, type, errs) => { setMsg({ type, text }); if (errs) { setFieldErrors(errs); setTab('scheda'); } }} />}
     </div>
+  );
+}
+
+/** Riepilogo per il venditore delle scelte fatte dal cliente alla firma. */
+function DeclarationsSummary({ fields, values }: { fields: FieldDef[]; values: Values }) {
+  const has = (k: string) => fields.some((f) => f.key === k);
+  const yes = (k: string) => values[k] === true;
+  const label = (f: FieldDef) => f.shortLabel ?? (f.label.length > 90 ? f.label.slice(0, 90) + '…' : f.label);
+  return (
+    <section className="card mb-5 p-4">
+      <h2 className="mb-3 font-semibold">Dichiarazioni e consensi del cliente</h2>
+      {(has('dich_a') || has('dich_b')) && (
+        <div className="mb-4 grid gap-2 sm:grid-cols-2">
+          {has('dich_a') && (
+            <div className={`rounded-lg p-3 text-sm ring-1 ${yes('dich_a') ? 'bg-emerald-50 text-emerald-900 ring-emerald-200' : 'bg-amber-50 text-amber-900 ring-amber-200'}`}>
+              <b>Coaching, chat e attività in presenza:</b> {yes('dich_a') ? 'si può iniziare subito (Dichiarazione A selezionata).' : 'iniziano dopo i 14 giorni del recesso (Dichiarazione A non selezionata).'}
+            </div>
+          )}
+          {has('dich_b') && (
+            <div className={`rounded-lg p-3 text-sm ring-1 ${yes('dich_b') ? 'bg-emerald-50 text-emerald-900 ring-emerald-200' : 'bg-amber-50 text-amber-900 ring-amber-200'}`}>
+              <b>Contenuti digitali:</b> {yes('dich_b') ? 'si possono fornire subito (Dichiarazione B selezionata).' : 'si forniscono dopo i 14 giorni del recesso (Dichiarazione B non selezionata).'}
+            </div>
+          )}
+        </div>
+      )}
+      <ul className="space-y-1 text-sm">
+        {fields.map((f) => {
+          const v = values[f.key];
+          const shown = f.type === 'checkbox' ? (v === true ? '✓ Sì' : '— No') : v ? String(v) : '—';
+          return (
+            <li key={f.key} className="flex justify-between gap-4 border-b border-zinc-100 py-1 last:border-0">
+              <span className={f.dependsOn ? 'pl-4 text-zinc-600' : ''}>{label(f)}</span>
+              <span className={`shrink-0 font-medium ${v === true || (f.type !== 'checkbox' && v) ? 'text-emerald-700' : 'text-zinc-400'}`}>{shown}</span>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 

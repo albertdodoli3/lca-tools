@@ -157,7 +157,7 @@ export function TemplateEditor({ template, readOnly }: { template: T; readOnly: 
               <div key={label} className="mb-4">
                 <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">{label}</h3>
                 <div className="space-y-2">
-                  {list.map((f) => <FieldConfig key={f.key} field={f} onChange={(p) => update(f.key, p)} readOnly={readOnly} />)}
+                  {list.map((f) => <FieldConfig key={f.key} field={f} checkboxes={synced.filter((x) => x.type === 'checkbox' && x.key !== f.key)} onChange={(p) => update(f.key, p)} readOnly={readOnly} />)}
                 </div>
               </div>
             ))}
@@ -168,7 +168,7 @@ export function TemplateEditor({ template, readOnly }: { template: T; readOnly: 
   );
 }
 
-function FieldConfig({ field: f, onChange, readOnly }: { field: FieldDef; onChange: (p: Partial<FieldDef>) => void; readOnly: boolean }) {
+function FieldConfig({ field: f, checkboxes, onChange, readOnly }: { field: FieldDef; checkboxes: FieldDef[]; onChange: (p: Partial<FieldDef>) => void; readOnly: boolean }) {
   return (
     <details className="rounded-lg ring-1 ring-zinc-200">
       <summary className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm">
@@ -206,6 +206,20 @@ function FieldConfig({ field: f, onChange, readOnly }: { field: FieldDef; onChan
         <div>
           <label className="label text-xs">Aiuto (facoltativo)</label>
           <input className="input text-xs" value={f.help ?? ''} onChange={(e) => onChange({ help: e.target.value })} />
+        </div>
+        {f.type !== 'checkbox' && f.type !== 'signature' && f.filledBy === 'cliente' && !!checkboxes.length && (
+          <div>
+            <label className="label text-xs">Si compila solo se è spuntata…</label>
+            <select className="input text-xs" value={f.dependsOn ?? ''} onChange={(e) => onChange({ dependsOn: e.target.value || undefined })}>
+              <option value="">— sempre —</option>
+              {checkboxes.map((c) => <option key={c.key} value={c.key}>{c.shortLabel ?? c.key}</option>)}
+            </select>
+            <p className="mt-1 text-[11px] text-zinc-500">Es. la modalità della testimonianza, scelta solo se il cliente autorizza le testimonianze. Diventa obbligatoria quando la casella è spuntata.</p>
+          </div>
+        )}
+        <div>
+          <label className="label text-xs">Etichetta breve per i riepiloghi (facoltativa)</label>
+          <input className="input text-xs" value={f.shortLabel ?? ''} onChange={(e) => onChange({ shortLabel: e.target.value || undefined })} />
         </div>
         <label className="flex items-center gap-2 text-xs">
           <input type="checkbox" checked={f.required} onChange={(e) => onChange({ required: e.target.checked })} className="accent-[rgb(var(--brand))]" /> Obbligatorio

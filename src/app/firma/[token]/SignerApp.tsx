@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ContractStatus } from '@prisma/client';
-import { formatDateTime, validateField, type FieldDef, type SignatureValue, type Values } from '@/lib/fields';
+import { formatDateTime, isActive, validateField, type FieldDef, type SignatureValue, type Values } from '@/lib/fields';
 import { renderContract } from '@/lib/render';
 import { DocPreview, focusKey } from '@/components/DocPreview';
 import { FieldInput } from '@/components/FieldInput';
@@ -107,8 +107,9 @@ const STEPS = ['I tuoi dati', 'Dichiarazioni', 'Rileggi', 'Firma'] as const;
 function Wizard({ token, c, companyName }: { token: string; c: C; companyName: string }) {
   const router = useRouter();
   const clientFields = c.fields.filter((f) => f.filledBy === 'cliente');
-  const dataFields = clientFields.filter((f) => !['checkbox', 'signature'].includes(f.type));
-  const declFields = clientFields.filter((f) => f.type === 'checkbox');
+  const dataFields = clientFields.filter((f) => !['checkbox', 'signature'].includes(f.type) && !f.dependsOn);
+  // Dichiarazioni: caselle più i campi che dipendono da una casella (es. modalità della testimonianza)
+  const declFields = clientFields.filter((f) => f.type === 'checkbox' || f.dependsOn);
   const sigFields = clientFields.filter((f) => f.type === 'signature');
   const steps = STEPS.filter((s) => (s === 'Dichiarazioni' ? declFields.length > 0 : s === 'I tuoi dati' ? dataFields.length > 0 : true));
 
@@ -143,14 +144,20 @@ function Wizard({ token, c, companyName }: { token: string; c: C; companyName: s
   }, [values]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const set = (k: string, v: unknown) => {
-    setValues((p) => ({ ...p, [k]: v }));
+    setValues((p) => {
+      const next = { ...p, [k]: v };
+      // Togliendo la spunta si azzerano le scelte che dipendono da quella casella
+      if (v !== true) for (const f of c.fields) if (f.dependsOn === k) delete next[f.key];
+      return next;
+    });
     setErrors((e) => ({ ...e, [k]: '' }));
   };
 
   const check = (list: FieldDef[]) => {
     const e: Record<string, string> = {};
     for (const f of list) {
-      const m = validateField(f, values[f.key]);
+      if (!isActive(f, values)) continue;
+      const m = validateField(f.dependsOn ? { ...f, required: true } : f, values[f.key]);
       if (m) e[f.key] = m;
     }
     setErrors(e);
@@ -217,9 +224,30 @@ function Wizard({ token, c, companyName }: { token: string; c: C; companyName: s
             <section className="card space-y-3 p-5">
               <div>
                 <h2 className="font-semibold">Dichiarazioni e consensi</h2>
-                <p className="text-xs text-zinc-500">Le caselle sono presentate non selezionate: spunta solo quelle che intendi confermare. Quelle con * sono necessarie.</p>
+                <p className="text-xs text-zinc-500">Tutte le caselle sono vuote: spunta personalmente solo quelle che intendi confermare. Quelle con * sono necessarie per firmare.</p>
               </div>
-              {declFields.map((f) => <FieldInput key={f.key} field={f} value={values[f.key]} onChange={(v) => set(f.key, v)} onFocus={() => focusKey(previewRef.current, f.key)} error={errors[f.key]} />)}
+              {(declFields.some((f) => f.key === 'dich_a') || declFields.some((f) => f.key === 'dich_b')) && (
+                <div className="rounded-lg bg-sky-50 p-3 text-xs leading-relaxed text-sky-950 ring-1 ring-sky-200">
+                  Per svolgere il percorso è necessario autorizzare il trattamento delle informazioni sulla tua sfera sentimentale e sessuale.
+                  Se vuoi <b>iniziare subito</b> il coaching e ricevere <b>subito i contenuti digitali</b>, seleziona anche le Dichiarazioni A e B, dopo aver letto le condizioni sul diritto di recesso.
+                  Se non le selezioni puoi comunque firmare: le relative prestazioni inizieranno dopo i 14 giorni previsti per il recesso.
+                  La registrazione delle sessioni e l’uso delle testimonianze sono del tutto facoltativi.
+                </div>
+              )}
+              {declFields
+                .filter((f) => !f.dependsOn)
+                .map((f) => (
+                  <div key={f.key} className="space-y-2">
+                    <FieldInput field={f} value={values[f.key]} onChange={(v) => set(f.key, v)} onFocus={() => focusKey(previewRef.current, f.key)} error={errors[f.key]} />
+                    {declFields
+                      .filter((d) => d.dependsOn === f.key && values[f.key] === true)
+                      .map((d) => (
+                        <div key={d.key} className="ml-7 rounded-lg bg-zinc-50 p-3 ring-1 ring-zinc-200">
+                          <FieldInput field={{ ...d, required: true }} value={values[d.key]} onChange={(v) => set(d.key, v)} onFocus={() => focusKey(previewRef.current, d.key)} error={errors[d.key]} />
+                        </div>
+                      ))}
+                  </div>
+                ))}
             </section>
           )}
 

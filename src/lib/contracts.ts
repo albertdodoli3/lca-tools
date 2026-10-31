@@ -171,15 +171,22 @@ export function pickClientValues(fields: FieldDef[], input: Values): Values {
   return out;
 }
 
+/** Svuota i campi che dipendono da una casella non spuntata (es. modalità della testimonianza senza consenso). */
+function clearInactive(fields: FieldDef[], values: Values): Values {
+  const out = { ...values };
+  for (const f of fields) if (f.dependsOn && out[f.dependsOn] !== true) delete out[f.key];
+  return out;
+}
+
 export async function saveDraft(c: Contract, input: Values) {
   const fields = fieldsOf(c);
   const clientValues = pickClientValues(fields.filter((f) => f.type !== 'signature'), input);
-  await db.contract.update({ where: { id: c.id }, data: { values: { ...valuesOf(c), ...clientValues } as Prisma.InputJsonValue } });
+  await db.contract.update({ where: { id: c.id }, data: { values: clearInactive(fields, { ...valuesOf(c), ...clientValues }) as Prisma.InputJsonValue } });
 }
 
 export async function signContract(c: Contract, input: Values, req: ReqInfo): Promise<{ ok: true } | { ok: false; errors: Record<string, string>; error?: string }> {
   const fields = fieldsOf(c);
-  const values = { ...valuesOf(c), ...pickClientValues(fields, input) };
+  const values = clearInactive(fields, { ...valuesOf(c), ...pickClientValues(fields, input) });
   const errors = validateAll(fields, values, 'cliente');
   if (Object.keys(errors).length) return { ok: false, errors };
 
